@@ -1,9 +1,7 @@
 import streamlit as st
 import cv2
 import numpy as np
-import os
 from PIL import Image
-import matplotlib.pyplot as plt
 from streamlit_image_comparison import image_comparison
 
 # Function to apply gamma correction
@@ -62,11 +60,6 @@ def apply_homomorphic_filtering(roi, low_freq=0.3, high_freq=1.5, gamma_h=1.5, g
     enhanced_roi = cv2.merge(enhanced_channels)
     return enhanced_roi
 
-def resize_image(image, width, height):
-    image = Image.fromarray(image)
-    return image.resize((width, height))
-
-
 def apply_enhancements(image, sequence, params):
     for i, technique in enumerate(sequence):
         if technique == "Gamma Correction":
@@ -89,23 +82,13 @@ def apply_enhancements(image, sequence, params):
 def compare_image(img1, img2, label1="Original", label2="Enhanced"):
     st.markdown(f"### Comparison between {label1} and {label2}")
     
-    # Display the original and enhanced images side by side
-    #col1, col2 = st.columns(2)
-
-    #with col1:
-    #    st.image(img1, caption=label1, use_column_width=True)
-#
-    #with col2:
-    #    st.image(img2, caption=label2, use_column_width=True)
-
+    # Use streamlit-image-comparison to display the original and enhanced images side by side
     image_comparison(
         img1=img1,
         img2=img2,
-        label1="Original",
-        label2="Enhanced"
-)
-
-
+        label1=label1,
+        label2=label2
+    )
 
 # Streamlit App
 def main():
@@ -156,32 +139,23 @@ def main():
         image = np.array(Image.open(uploaded_file))
         original_image = image.copy()
 
-        st.image(original_image, caption="Original Image", use_column_width=True)
-
-        if st.button("Apply Enhancements"):
-            enhanced_image = image.copy()
-
-            # Apply enhancements based on selected techniques
-            enhanced_image = apply_enhancements(enhanced_image, [t['type'] for t in st.session_state.techniques], [t['params'] for t in st.session_state.techniques])
-
-            st.image(enhanced_image, caption="Enhanced Image", use_column_width=True)
+        # Combine Apply and Compare functionalities into one button
+        if st.button("Apply Enhancements and Compare"):
+            enhanced_image = apply_enhancements(image.copy(), [t['type'] for t in st.session_state.techniques], [t['params'] for t in st.session_state.techniques])
 
             # Store the enhanced image in session state for later use in comparison
             st.session_state.enhanced_image = enhanced_image
 
+            # Show comparison between original and enhanced image without showing the original separately
+            compare_image(original_image, enhanced_image, label1="Original", label2="Enhanced")
+
+            # Allow downloading the enhanced image
             st.sidebar.download_button(
                 label="Download Enhanced Image",
                 data=cv2.imencode('.jpg', enhanced_image)[1].tobytes(),
                 file_name='enhanced_image.jpg',
                 mime='image/jpeg'
             )
-
-        # Check if enhancements have been applied before allowing comparison
-        if st.button("Compare") and 'enhanced_image' in st.session_state:
-            enhanced_image = st.session_state.enhanced_image
-            compare_image(original_image, enhanced_image, label1="Original", label2="Enhanced")
-        else:
-            st.warning("Please apply enhancements before comparing.")
 
 if __name__ == "__main__":
     main()
